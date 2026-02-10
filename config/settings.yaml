@@ -1,0 +1,27 @@
+# Fleet Data Pipeline — Self-Driving Metrics
+# Environment-agnostic config (override via env or .env)
+
+kafka:
+  bootstrap_servers: "localhost:9092"
+  topics:
+    vehicle_telemetry: "vehicle_telemetry"
+    perception_events: "perception_events"
+    driving_events: "driving_events"
+
+timescaledb:
+  host: "localhost"
+  port: 5432
+  database: "postgres"
+  user: "postgres"
+  password: "mysecretpassword"
+
+streamlit:
+  port: 8501
+  refresh_seconds: 5
+
+metrics:
+  # Self-Driving performance thresholds
+  intervention_battery_threshold_pct: 20
+  speed_limit_violation_kmh: 65
+  collision_risk_distance_m: 5.0
+  min_miles_per_intervention: 1.0

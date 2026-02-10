@@ -1,0 +1,30 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Env
+.env
+.env.local
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Results (optional; uncomment to track)
+# results/*.csv
+# results/*.png
+
+# OS
+.DS_Store
+Thumbs.db
