@@ -1,0 +1,4 @@
+time,vehicle_id,current_speed_kmh,speed_limit_violation,latitude,longitude,battery_level_pct,remaining_range_km,autopilot_engaged,odometer_km,start_location,destination
+2026-02-09 12:00:00+00,4521,847.2,true,37.6199,-122.3810,100.0,500.0,true,0.0,United States,N/A
+2026-02-09 12:00:00+00,7823,612.5,true,37.4522,-122.1123,100.0,500.0,true,0.0,United States,UAL456
+2026-02-09 12:00:00+00,1203,0.0,false,37.3897,-122.0822,100.0,500.0,true,0.0,United States,N/A

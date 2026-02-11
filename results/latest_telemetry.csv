@@ -1,0 +1,1 @@
+time,vehicle_id,current_speed_kmh,speed_limit_violation,latitude,longitude,battery_level_pct,remaining_range_km,autopilot_engaged,odometer_km,start_location,destination

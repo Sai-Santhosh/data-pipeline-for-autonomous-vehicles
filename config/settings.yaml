@@ -25,3 +25,18 @@ metrics:
   speed_limit_violation_kmh: 65
   collision_risk_distance_m: 5.0
   min_miles_per_intervention: 1.0
+
+# Real data source: OpenSky Network (real-time aircraft positions → mapped to fleet telemetry)
+opensky:
+  api_url: "https://opensky-network.org/api/states/all"
+  # Optional bounding box (lamin, lomin, lamax, lomax) to limit area and API credits. Example: US West.
+  bbox: null   # e.g. [37.0, -123.0, 38.0, -121.0] for SF Bay
+  poll_interval_sec: 10
+  max_vehicles: 20   # max number of "vehicles" (aircraft) to emit per poll to avoid flooding
+
+# Waymo-style replay (file → Kafka). Waymo Open Dataset has no live API; use CSV/JSONL export.
+waymo_replay:
+  telemetry_path: "data/waymo_sample.csv"
+  perception_path: null
+  speed_factor: 1.0   # 1.0 = as fast as possible; 0.1 = 10x slower
+  loop: false

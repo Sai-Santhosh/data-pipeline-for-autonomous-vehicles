@@ -147,10 +147,13 @@ Then start the consumer, producer, and dashboard in separate terminals (see belo
 2. **Start the producer** (streams data to Kafka):
 
    ```bash
-   # Live streaming (Ctrl+C to stop)
+   # Simulated fleet data (default)
    python scripts/run_producer.py live
    # Or generate 50 batches per vehicle then exit
    python scripts/run_producer.py 50
+
+   # Real data: OpenSky Network API (real-time aircraft positions → fleet telemetry)
+   python scripts/run_producer.py live --source opensky
    ```
 
 3. **Open the dashboard**:
@@ -162,6 +165,31 @@ Then start the consumer, producer, and dashboard in separate terminals (see belo
    ```
 
    Open [http://localhost:8501](http://localhost:8501).
+
+### Logs
+
+When you run the consumer or producer, **logs are written to the console and to a file**:
+
+- **Console:** All INFO-level messages (startup, batch writes, message counts, errors).
+- **File:** `logs/pipeline.log` in the project root (created automatically).
+
+You’ll see lines like: `Consumer started: bootstrap=...`, `Wrote 50 telemetry rows to TimescaleDB`, `Producer sent batch 10`, `OpenSky: emitted 20 vehicles`, etc. Tail the file with `Get-Content logs/pipeline.log -Wait` (PowerShell) or `tail -f logs/pipeline.log` (bash).
+
+### Generating results (real OpenSky data)
+
+The pipeline uses **real data** when you run with `--source opensky` (OpenSky Network API). To generate result CSVs after running:
+
+1. Start consumer: `python scripts/run_consumer.py` (or use `--with-consumer` below).
+2. Run OpenSky producer for a few polls (e.g. 20–30 seconds), then Ctrl+C.
+3. Export: `python scripts/export_results.py`
+
+Or in one go (consumer in background, 3 OpenSky polls, then export):
+
+```bash
+python scripts/run_pipeline_and_export.py --with-consumer
+```
+
+Outputs in `results/`: `latest_telemetry.csv`, `perception_summary_24h.csv`, `miles_per_intervention_sample.csv`, `alerts_sample.csv`, `interventions_per_vehicle_sample.csv`. See `results/PIPELINE_REAL_DATA.md` for verification that OpenSky is wired end-to-end.
 
 ---
 
@@ -211,6 +239,20 @@ new_tesla/
 
 ---
 
+## Data sources
+
+The pipeline supports two ingestion modes:
+
+| Source | Description | Command |
+|--------|-------------|--------|
+| **Simulation** (default) | Synthetic vehicle telemetry, perception events, and driving events generated in Python (California locations, 10 vehicles). | `python scripts/run_producer.py live` |
+| **OpenSky Network** | **Real data** from the [OpenSky Network API](https://openskynetwork.github.io/opensky-api/rest.html): real-time aircraft position and velocity. Each aircraft is mapped to the same telemetry schema. No API key required (anonymous rate limits: 400 credits/day, 10s resolution). | `python scripts/run_producer.py live --source opensky` |
+| **Waymo replay** | **File replay:** Waymo Open Dataset has no live API. Replay from CSV/JSONL (e.g. `data/waymo_sample.csv` or your export from Waymo). Same schema as telemetry. | `python scripts/run_producer.py --source waymo_replay [path.csv]` |
+
+OpenSky: in `config/settings.yaml` under `opensky` set optional `bbox`, `poll_interval_sec`, `max_vehicles`. Waymo replay: set `waymo_replay.telemetry_path`, optional `perception_path`, `speed_factor`, `loop`. See [docs/data_sources.md](docs/data_sources.md).
+
+---
+
 ## Configuration
 
 Edit `config/settings.yaml` to change:
@@ -237,13 +279,20 @@ Run from repo root so that `sys.path` includes the project. Jupyter will use the
 
 ---
 
-## Self-Driving metrics (summary)
+## Self-Driving metrics (JD-aligned)
 
-- **Intervention / disengagement counts** per vehicle and time window
-- **Km per intervention**: distance driven divided by number of interventions (higher is better)
-- **Speed violations** and **low battery** alerts from telemetry
-- **Collision risk** alerts from perception (close, fast-moving objects)
-- **Perception summary**: detection counts by object class (car, pedestrian, cyclist, etc.)
+All metrics from the Tesla Fleet Data / Self-Driving JD are implemented. See **[docs/JD_METRICS_MAPPING.md](docs/JD_METRICS_MAPPING.md)** for the full JD → implementation mapping.
+
+| Metric | Description |
+|--------|-------------|
+| **Miles (km) per intervention** | Distance driven between interventions (higher = better) |
+| **Intervention rate** | Interventions per 1000 km (lower = better) |
+| **Disengagement rate** | Disengagements per 1000 km (lower = better) |
+| **Fleet Self-Driving summary** | Total km driven, total interventions+disengagements, fleet avg km per intervention |
+| **Autopilot engagement rate** | % of telemetry with autopilot engaged per vehicle |
+| **Driving events** | Counts by type: intervention, disengagement, lane_change, hard_brake |
+| **Alerts** | Speed violation, low battery, collision risk |
+| **Perception summary** | Detection counts by object class (car, pedestrian, aircraft, etc.) |
 
 ---
 

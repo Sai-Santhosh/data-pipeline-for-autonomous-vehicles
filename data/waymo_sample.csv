@@ -1,0 +1,8 @@
+vehicle_id,timestamp,current_speed_kmh,speed_limit_violation,latitude,longitude,battery_level_pct,remaining_range_km,autopilot_engaged,odometer_km,start_location,destination
+1,2026-02-09 10:00:00,45,0,37.3947,-122.1503,92,478,1,120.5,Tesla HQ,Stanford University
+1,2026-02-09 10:00:05,48,0,37.3960,-122.1480,91.8,476,1,120.7,Tesla HQ,Stanford University
+1,2026-02-09 10:00:10,52,0,37.3972,-122.1458,91.6,474,1,121.0,Tesla HQ,Stanford University
+2,2026-02-09 10:00:02,38,0,37.7749,-122.4194,88,456,1,89.2,SOMA,Golden Gate Bridge
+2,2026-02-09 10:00:07,41,0,37.7760,-122.4180,87.9,454,1,89.4,SOMA,Golden Gate Bridge
+3,2026-02-09 10:00:01,68,1,34.0522,-118.2437,75,390,1,234.1,Downtown LA,LAX
+3,2026-02-09 10:00:06,65,0,34.0510,-118.2450,74.8,388,1,234.4,Downtown LA,LAX

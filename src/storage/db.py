@@ -83,7 +83,7 @@ def insert_vehicle_telemetry(conn, rows: list[dict]) -> None:
     ]
     execute_values(
         conn,
-        "INSERT INTO vehicle_telemetry (" + ", ".join(cols) + ") VALUES %s ON CONFLICT DO NOTHING",
+        "INSERT INTO vehicle_telemetry (" + ", ".join(cols) + ") VALUES %s",
         values,
         template="(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
         page_size=500,
@@ -106,7 +106,7 @@ def insert_perception_events(conn, rows: list[dict]) -> None:
     ]
     execute_values(
         conn,
-        "INSERT INTO perception_events (" + ", ".join(cols) + ") VALUES %s ON CONFLICT DO NOTHING",
+        "INSERT INTO perception_events (" + ", ".join(cols) + ") VALUES %s",
         values,
         template="(%s, %s, %s, %s, %s, %s, %s)",
         page_size=500,
@@ -122,7 +122,7 @@ def insert_driving_events(conn, rows: list[dict]) -> None:
     ]
     execute_values(
         conn,
-        "INSERT INTO driving_events (time, vehicle_id, event_type, event_detail, latitude, longitude) VALUES %s ON CONFLICT DO NOTHING",
+        "INSERT INTO driving_events (time, vehicle_id, event_type, event_detail, latitude, longitude) VALUES %s",
         values,
         template="(%s, %s, %s, %s, %s, %s)",
         page_size=500,
@@ -132,6 +132,13 @@ def insert_driving_events(conn, rows: list[dict]) -> None:
 def insert_alert(conn, vehicle_id: int, alert_type: str, alert_message: str, time_ts=None) -> None:
     from datetime import datetime, timezone
     t = time_ts or datetime.now(timezone.utc)
+    if isinstance(t, str):
+        try:
+            t = datetime.fromisoformat(t.replace("Z", "+00:00"))
+            if t.tzinfo is None:
+                t = t.replace(tzinfo=timezone.utc)
+        except Exception:
+            t = datetime.now(timezone.utc)
     cur = conn.cursor()
     cur.execute(
         "INSERT INTO alerts (time, vehicle_id, alert_type, alert_message) VALUES (%s, %s, %s, %s)",

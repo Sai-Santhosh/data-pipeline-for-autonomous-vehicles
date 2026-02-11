@@ -13,10 +13,30 @@ RESULTS = ROOT / "results"
 def main():
     RESULTS.mkdir(exist_ok=True)
     try:
-        from src.metrics.queries import miles_per_intervention, alerts_summary, interventions_per_vehicle
+        from src.metrics.queries import (
+            miles_per_intervention,
+            alerts_summary,
+            interventions_per_vehicle,
+            latest_telemetry,
+            perception_summary,
+            intervention_rate_per_1000km,
+            disengagement_rate_per_1000km,
+            fleet_self_driving_summary,
+            autopilot_engagement_rate,
+        )
     except Exception as e:
         print("Import failed (install deps, set config):", e)
         return 1
+    try:
+        latest_telemetry().to_csv(RESULTS / "latest_telemetry.csv", index=False)
+        print("Wrote results/latest_telemetry.csv")
+    except Exception as e:
+        print("latest_telemetry:", e)
+    try:
+        perception_summary(hours=24).to_csv(RESULTS / "perception_summary_24h.csv", index=False)
+        print("Wrote results/perception_summary_24h.csv")
+    except Exception as e:
+        print("perception_summary:", e)
     try:
         mpi = miles_per_intervention(24)
         mpi.to_csv(RESULTS / "miles_per_intervention_sample.csv", index=False)
@@ -33,6 +53,26 @@ def main():
         print("Wrote results/interventions_per_vehicle_sample.csv")
     except Exception as e:
         print("interventions_per_vehicle:", e)
+    try:
+        intervention_rate_per_1000km(24).to_csv(RESULTS / "intervention_rate_per_1000km.csv", index=False)
+        print("Wrote results/intervention_rate_per_1000km.csv")
+    except Exception as e:
+        print("intervention_rate_per_1000km:", e)
+    try:
+        disengagement_rate_per_1000km(24).to_csv(RESULTS / "disengagement_rate_per_1000km.csv", index=False)
+        print("Wrote results/disengagement_rate_per_1000km.csv")
+    except Exception as e:
+        print("disengagement_rate_per_1000km:", e)
+    try:
+        fleet_self_driving_summary(24).to_csv(RESULTS / "fleet_self_driving_summary.csv", index=False)
+        print("Wrote results/fleet_self_driving_summary.csv")
+    except Exception as e:
+        print("fleet_self_driving_summary:", e)
+    try:
+        autopilot_engagement_rate(24).to_csv(RESULTS / "autopilot_engagement_rate.csv", index=False)
+        print("Wrote results/autopilot_engagement_rate.csv")
+    except Exception as e:
+        print("autopilot_engagement_rate:", e)
     return 0
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ for real-time pipeline consumption. Aligned with fleet data mining and
 Self-Driving performance measurement use cases.
 """
 import json
+import logging
 import random
 import sys
 import time
@@ -15,11 +16,15 @@ from pathlib import Path
 # Project root for config
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from config import load_config
+from src.logging_config import setup_logging, LOG_FILE
 
 try:
     from kafka import KafkaProducer
 except ImportError:
     raise ImportError("Install kafka-python: pip install kafka-python")
+
+setup_logging(log_file=True, console=True)
+logger = logging.getLogger(__name__)
 
 # California locations for realistic fleet simulation
 LOCATIONS = {
@@ -159,9 +164,11 @@ def run_producer(mode: str = "live", records_per_vehicle: int = 10) -> None:
         }
 
     if mode == "live":
-        print("Producer: streaming (Ctrl+C to stop)...")
+        logger.info("Producer (simulation): streaming. Log file: %s", LOG_FILE)
+        batch_num = 0
         try:
             while True:
+                batch_num += 1
                 for vid in range(1, num_vehicles + 1):
                     state = vehicle_states[vid]
                     producer.send(topic_telemetry, build_vehicle_telemetry(vid, state))
@@ -169,14 +176,17 @@ def run_producer(mode: str = "live", records_per_vehicle: int = 10) -> None:
                     ev = build_driving_event(vid, state)
                     if ev:
                         producer.send(topic_driving, ev)
+                if batch_num == 1 or batch_num % 10 == 0:
+                    logger.info("Producer sent batch %s (%s telemetry + perception)", batch_num, num_vehicles)
                 time.sleep(1)
         except KeyboardInterrupt:
             producer.flush()
             producer.close()
+            logger.info("Producer stopped after %s batches", batch_num)
             return
     else:
         n = int(mode) if mode.isdigit() else records_per_vehicle
-        for _ in range(n):
+        for i in range(n):
             for vid in range(1, num_vehicles + 1):
                 state = vehicle_states[vid]
                 producer.send(topic_telemetry, build_vehicle_telemetry(vid, state))
@@ -184,12 +194,93 @@ def run_producer(mode: str = "live", records_per_vehicle: int = 10) -> None:
                 ev = build_driving_event(vid, state)
                 if ev:
                     producer.send(topic_driving, ev)
+            if (i + 1) % 5 == 0 or i == 0:
+                logger.info("Producer batch %s/%s sent", i + 1, n)
             time.sleep(0.5)
         producer.flush()
         producer.close()
-        print(f"Produced {n * num_vehicles} telemetry and perception records.")
+        logger.info("Produced %s telemetry+perception records (simulation)", n * num_vehicles)
+
+
+def run_producer_opensky(mode: str = "live", max_polls: int | None = None) -> None:
+    """Run producer using real data from OpenSky Network API (aircraft positions → fleet telemetry)."""
+    cfg = load_config()
+    bootstrap = cfg["kafka"]["bootstrap_servers"]
+    topic_telemetry = cfg["kafka"]["topics"]["vehicle_telemetry"]
+    topic_perception = cfg["kafka"]["topics"]["perception_events"]
+    opensky_cfg = cfg.get("opensky", {})
+    poll_interval = opensky_cfg.get("poll_interval_sec", 10)
+    max_vehicles = opensky_cfg.get("max_vehicles", 20)
+    bbox = opensky_cfg.get("bbox")
+
+    producer = KafkaProducer(
+        bootstrap_servers=bootstrap,
+        value_serializer=lambda v: json.dumps(v).encode("utf-8"),
+    )
+
+    def send_telemetry(record):
+        producer.send(topic_telemetry, record)
+
+    def send_perception(record):
+        producer.send(topic_perception, record)
+
+    from src.ingestion.opensky_source import stream_opensky_to_kafka
+    if max_polls:
+        logger.info("Producer (OpenSky real data): running %s polls then exiting. Log file: %s", max_polls, LOG_FILE)
+    else:
+        logger.info("Producer (OpenSky real data): streaming (Ctrl+C to stop). Log file: %s", LOG_FILE)
+    try:
+        stream_opensky_to_kafka(
+            send_telemetry_fn=send_telemetry,
+            send_perception_fn=send_perception,
+            poll_interval_sec=poll_interval,
+            max_vehicles=max_vehicles,
+            bbox=bbox,
+            max_polls=max_polls,
+        )
+    except KeyboardInterrupt:
+        pass
+    finally:
+        producer.flush()
+        producer.close()
+
+
+def run_producer_waymo_replay(file_path: str | None = None, loop: bool = False) -> None:
+    """Run producer using Waymo-style replay from CSV/JSONL file (no live Waymo API)."""
+    cfg = load_config()
+    waymo_cfg = cfg.get("waymo_replay", {})
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[2]
+    path = file_path or waymo_cfg.get("telemetry_path", "data/waymo_sample.csv")
+    if not Path(path).is_absolute():
+        path = root / path
+    perception_path = waymo_cfg.get("perception_path")
+    if perception_path and not Path(perception_path).is_absolute():
+        perception_path = root / perception_path
+    speed_factor = float(waymo_cfg.get("speed_factor", 1.0))
+    loop = loop or waymo_cfg.get("loop", False)
+    from src.ingestion.waymo_replay import run_waymo_replay
+    logger.info("Producer (Waymo replay): sending from %s. Log file: %s", path, LOG_FILE)
+    run_waymo_replay(
+        telemetry_path=path,
+        perception_path=perception_path if perception_path and Path(perception_path).exists() else None,
+        speed_factor=speed_factor,
+        loop=loop,
+    )
 
 
 if __name__ == "__main__":
-    mode = sys.argv[1] if len(sys.argv) > 1 else "live"
-    run_producer(mode=mode)
+    args = [a for a in sys.argv[1:] if a != "--source" and not a.startswith("--")]
+    source = "simulation"
+    if "--source" in sys.argv:
+        i = sys.argv.index("--source")
+        if i + 1 < len(sys.argv):
+            source = sys.argv[i + 1].lower()
+    mode = args[0] if args else "live"
+    if source == "opensky":
+        run_producer_opensky(mode=mode)
+    elif source == "waymo_replay":
+        file_arg = args[1] if len(args) > 1 else None
+        run_producer_waymo_replay(file_path=file_arg, loop="--loop" in sys.argv)
+    else:
+        run_producer(mode=mode)

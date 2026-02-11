@@ -1,0 +1,2 @@
+# Pipeline logs are written here: pipeline.log (consumer, producer, OpenSky, Waymo replay).
+# Created automatically when you run run_consumer.py or run_producer.py.

@@ -20,13 +20,14 @@ from src.storage.db import (
     insert_driving_events,
     insert_alert,
 )
+from src.logging_config import setup_logging, LOG_FILE
 
 try:
     from kafka import KafkaConsumer
 except ImportError:
     raise ImportError("Install kafka-python: pip install kafka-python")
 
-logging.basicConfig(level=logging.INFO)
+setup_logging(log_file=True, console=True)
 logger = logging.getLogger(__name__)
 
 BATCH_SIZE = 50
@@ -69,9 +70,14 @@ def main():
     perception_buf = []
     driving_buf = []
 
-    logger.info("Consumer started: %s", bootstrap)
+    logger.info("Consumer started: bootstrap=%s topics=%s", bootstrap, [topic_telemetry, topic_perception, topic_driving])
+    logger.info("Log file: %s", LOG_FILE)
+    msg_count = 0
 
     for message in consumer:
+        msg_count += 1
+        if msg_count == 1 or msg_count % 100 == 0:
+            logger.info("Consumed %s messages so far", msg_count)
         if SHUTDOWN:
             break
         try:
@@ -129,12 +135,15 @@ def main():
                 with get_conn() as conn:
                     if telemetry_buf:
                         insert_vehicle_telemetry(conn, telemetry_buf)
+                        logger.info("Wrote %s telemetry rows to TimescaleDB", len(telemetry_buf))
                         telemetry_buf = []
                     if perception_buf:
                         insert_perception_events(conn, perception_buf)
+                        logger.info("Wrote %s perception rows to TimescaleDB", len(perception_buf))
                         perception_buf = []
                     if driving_buf:
                         insert_driving_events(conn, driving_buf)
+                        logger.info("Wrote %s driving_event rows to TimescaleDB", len(driving_buf))
                         driving_buf = []
             except Exception as e:
                 logger.exception("Batch write error: %s", e)

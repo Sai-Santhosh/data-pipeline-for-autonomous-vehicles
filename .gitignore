@@ -21,6 +21,9 @@ build/
 # Jupyter
 .ipynb_checkpoints/
 
+# Pipeline logs (optional; uncomment to track)
+# logs/*.log
+
 # Results (optional; uncomment to track)
 # results/*.csv
 # results/*.png
